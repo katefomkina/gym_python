@@ -1,0 +1,28 @@
+body {
+    font-family: "Roboto", sans-serif;
+    padding: 8px 32px;
+}
+
+#video, #processed {
+    display: none;
+}
+
+#processed {
+    display: none;
+    float: left;
+    margin: 96px 24px;
+}
+
+div {
+    float: left;
+}
+
+button {
+    font-family: "Roboto", sans-serif;
+    font-size: 18px;
+    background: none;
+    border-radius: 4px;
+    padding: 10px 8px;
+    width: 100px;
+    margin: 24px 0;
+}

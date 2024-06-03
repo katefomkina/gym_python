@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Видео</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <video id="video" autoplay></video>
+    <div>
+        <h2 id="counter">Выберите вид упражнения и нажмите кнопку «Начать»</h2>
+        <p id="error"></p><br>
+
+        <form id="exerciseForm">
+            <input type="radio" name="exercise" value="1"> Приседания<br>
+            <input type="radio" name="exercise" value="2"> Отжимания<br>
+            <input type="radio" name="exercise" value="3"> Поднятие рук<br>
+        </form><br>
+        <button id="startButton">Начать</button><br>
+    </div>
+
+    <img id="processed" src="" alt="Обработанное видео">
+
+    <script>
+        const video = document.getElementById('video');
+        const processed = document.getElementById('processed');
+
+        document.addEventListener('DOMContentLoaded', function() {
+            processed.style.display = 'none';
+            const startButton = document.getElementById('startButton');
+            const exerciseRadios = document.querySelectorAll('input[name="exercise"]');
+
+            // Проверка при загрузке страницы
+            checkExerciseSelection();
+
+            // Проверка при изменении состояния радио-баттонов
+            exerciseRadios.forEach(radio => {
+                radio.addEventListener('change', checkExerciseSelection);
+            });
+
+            function checkExerciseSelection() {
+                const selectedExercise = document.querySelector('input[name="exercise"]:checked');
+
+                if (selectedExercise) {
+                    startButton.disabled = false; // Если выбран радио-баттон, делаем кнопку активной
+                } else {
+                    startButton.disabled = true; // Если радио-баттон не выбран, делаем кнопку неактивной
+                }
+            }
+        });
+
+        document.getElementById('startButton').addEventListener('click', function() {
+            // Получение доступа к веб-камере
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    processed.style.display = 'block';
+                    // Инициализация WebSocket соединения
+                    const ws = new WebSocket("ws://localhost:8765");
+                    ws.onopen = () => {
+                        console.log('Соединение установлено');
+                        // Передача видеоданных через WebSocket
+                        video.addEventListener('play', () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = 640; // Установка ширины canvas
+                            canvas.height = 480; // Установка высоты canvas
+                            const ctx = canvas.getContext('2d');
+                            const sendFrame = () => {
+                                if (video.paused || video.ended)
+                                    return;
+                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                const frame = canvas.toDataURL("image/jpeg");
+
+                                // Отправка выбранного радио-баттона на сервер
+                                const selectedExercise = document.querySelector('input[name="exercise"]:checked').value;
+                                ws.send(frame + "," + selectedExercise);
+                                requestAnimationFrame(sendFrame);
+                            };
+                            sendFrame();
+                        });
+                    };
+                    ws.onmessage = function(event) {
+                        var parts = event.data.split(',');
+                        var base64Image = parts[0];
+                        var counter = parts[1];
+
+                        // Установка обработанного изображения
+                        var processed = document.getElementById('processed');
+                        processed.src = "data:image/png;base64," + base64Image;
+
+                        var counterElement = document.getElementById('counter');
+                        counterElement.textContent = "Выполнено верно: " + counter;
+                    };
+                })
+                .catch(error => {
+                    console.error("Ошибка доступа к веб-камере:", error);
+                });
+        });
+    </script>
+
+</body>
+</html>
